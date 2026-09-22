@@ -1,0 +1,29 @@
+# 依赖
+node_modules/
+
+# 构建产物
+dist/
+
+# 日志
+logs/
+*.log
+
+# 系统
+.DS_Store
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+
+# 临时目录
+.tmp/
+.temp/
+tmp/
+
+# 环境变量
+.env
+.env.*
+!.env.example
+
+# 注意：.memory/ 必须入库，不得加入本文件

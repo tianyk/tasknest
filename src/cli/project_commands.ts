@@ -1,5 +1,6 @@
 import { initProject, listProjects, resolveProject } from '../core/project';
 import { CliUsageError, expectPositionals, parseArgs } from './args';
+import { formatProjectLine } from './format';
 import { writeLine } from './output';
 
 const INIT_SPEC = { values: ['--name'], flags: [] } as const;
@@ -27,7 +28,7 @@ export function handleProject(argv: string[]): number {
 	}
 	if (input.positionals.length === 1 && input.positionals[0] === 'list') {
 		for (const project of listProjects()) {
-			writeLine(project.name);
+			writeLine(formatProjectLine(project));
 		}
 		return 0;
 	}

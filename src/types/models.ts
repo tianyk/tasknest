@@ -15,6 +15,7 @@ export type AuthorType = 'user' | 'agent' | 'system';
 export interface Project {
 	id: string;
 	name: string;
+	path?: string;
 	createdAt: Date;
 	updatedAt: Date;
 }

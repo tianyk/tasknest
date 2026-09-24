@@ -21,18 +21,31 @@ export function openDatabase(path: string): Database {
 }
 
 export function migrateDatabase(db: Database): void {
-	if (readSchemaVersion(db) >= LATEST_SCHEMA_VERSION) {
+	const version = readSchemaVersion(db);
+	if (version > LATEST_SCHEMA_VERSION) {
+		throw databaseVersionTooNewError(version);
+	}
+	if (version >= LATEST_SCHEMA_VERSION) {
 		return;
 	}
 	withImmediateTransaction(db, () => {
-		const version = readSchemaVersion(db);
+		const current = readSchemaVersion(db);
+		if (current > LATEST_SCHEMA_VERSION) {
+			throw databaseVersionTooNewError(current);
+		}
 		for (const migration of MIGRATIONS) {
-			if (migration.version > version) {
+			if (migration.version > current) {
 				migration.up(db);
 			}
 		}
 		db.exec(`PRAGMA user_version = ${LATEST_SCHEMA_VERSION};`);
 	});
+}
+
+function databaseVersionTooNewError(version: number): Error {
+	return new Error(
+		`数据库版本（${version}）高于当前 tasknest 支持的版本（${LATEST_SCHEMA_VERSION}），请升级 tasknest 后重试`,
+	);
 }
 
 export function withImmediateTransaction<T>(db: Database, work: () => T): T {

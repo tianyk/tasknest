@@ -33,7 +33,7 @@ description: 使用 tasknest CLI 管理当前项目 Task 的官方规范（MCP �
 
 ```bash
 tasknest init                            # 初始化当前目录 Project（可选 --name）
-tasknest project                         # 显示当前 Project；project list 列出全部
+tasknest project                         # 显示当前 Project；project list 列出全部（含最近绑定目录）
 tasknest add "支持导出任务"              # 创建 Task（可只有标题）
 tasknest list                            # 当前 Project 的未完成 Task
 tasknest show 42                         # 查看详情与 Activity

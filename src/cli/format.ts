@@ -11,6 +11,10 @@ export function formatLocalTime(date: Date): string {
 	].join(' ');
 }
 
+export function formatProjectLine(project: Project): string {
+	return project.path === undefined ? project.name : `${project.name}  ${project.path}`;
+}
+
 export function formatTaskLine(task: Task): string {
 	const status = `[${task.status}]`.padEnd(STATUS_COLUMN_WIDTH);
 	return `#${task.number} ${status}  ${task.title}`;

@@ -332,10 +332,13 @@ Project 是 Task 的逻辑容器。
 interface Project {
   id: string
   name: string
+  path?: string
   createdAt: Date
   updatedAt: Date
 }
 ```
+
+`path` 是可选字段，记录 Project 最近一次绑定的项目目录（绝对路径），仅用于 `project list` 展示，不参与 Project 自动发现；`Personal` 没有项目目录，该字段为空。
 
 内部 ID 推荐：
 
@@ -520,6 +523,7 @@ tasknest init --name "Foo Project"
 - `init` 针对当前目录建立标记；当前目录已有有效标记时，返回已绑定的 Project，不重复创建。
 - 已有标记时传入相同的 `--name` 可重复执行；传入不同名称报错，一期不通过 `init` 重命名 Project。
 - 当前目录没有标记时，显式 `init` 可以创建独立项目，即使父目录已有项目标记。
+- `init` 在创建项目或绑定已存在项目时，将当前目录记录为 Project 的最近绑定目录；该记录仅用于 `project list` 展示，不改变标记的权威绑定。
 - 项目名称去除首尾空白后不能为空；标记或数据库异常时报告错误，不覆盖已有标记或数据库。
 - 在 `$HOME` 执行 `init` 时，使用该目录已有的 Personal 标记，不能覆盖为普通 Project。
 
@@ -987,7 +991,7 @@ tasknest delete 42
 - `--title` / `--description` / `--author` 等字符串通过参数传入，支持经 shell 引号包裹的空格与换行；一期不增加交互输入或编辑器协议。
 - 成功信息与查询结果写入 stdout，错误中文文案写入 stderr，不输出 stack trace；一期不支持 `--json`。
 - `show` 返回当前 Task 的字段、可用的来源编号与标题，以及按创建时间排列的评论；不递归展开来源 Task。
-- `project` 显示当前 Project；`project list` 包含 Personal，按创建时间升序、ID 升序稳定排序。
+- `project` 显示当前 Project 名称；`project list` 包含 Personal，每行显示名称，已有绑定目录的 Project 以两个空格分隔追加路径；按创建时间升序、ID 升序稳定排序。
 
 | 退出码 | 含义 |
 | --- | --- |
@@ -1237,9 +1241,12 @@ get_task(42)
 
 - id
 - name
+- path
 - next_task_number
 - created_at
 - updated_at
+
+`path` 可空，记录 Project 最近一次绑定的项目目录，仅用于 `project list` 展示，不参与 Project 自动发现。
 
 `next_task_number` 是项目内下一个可分配任务编号，初始为 1，仅由 Task 创建流程推进；它是内部存储字段，不提供用户编辑入口。
 
@@ -1420,6 +1427,8 @@ Task #1 最终留下：
 **Project Discovery**
 
 可以从任意子目录自动找到 Project。
+
+`project list` 展示名称与最近绑定目录，可区分同名 Project。
 
 **Personal**
 

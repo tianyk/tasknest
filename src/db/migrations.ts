@@ -50,6 +50,12 @@ export const MIGRATIONS: readonly Migration[] = [
 			`);
 		},
 	},
+	{
+		version: 2,
+		up(db) {
+			db.exec('ALTER TABLE projects ADD COLUMN path TEXT;');
+		},
+	},
 ];
 
 export const LATEST_SCHEMA_VERSION = MIGRATIONS.at(-1)?.version ?? 0;

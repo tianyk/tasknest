@@ -4,7 +4,7 @@ import { getGlobalProjectMarkerPath, getHomeDir, getProjectMarkerPath } from '..
 import { findProjectMarker } from '../config/project_discovery';
 import { readProjectMarker, writeProjectMarker } from '../config/project_marker';
 import { getDatabase, withImmediateTransaction } from '../db/database';
-import { getProjectById, insertProject, listProjects as listProjectRows } from '../db/project_repository';
+import { getProjectById, insertProject, listProjects as listProjectRows, updateProjectPath } from '../db/project_repository';
 import type { Project } from '../types/models';
 import {
 	InvalidProjectMarkerError,
@@ -100,7 +100,7 @@ export function initProject(options: {
 	if (existing.status === 'ok') {
 		const project = loadProjectFromMarker(markerPath);
 		assertNameMatches(project, requestedName);
-		return { project, created: false };
+		return { project: bindProjectPath(project, cwd), created: false };
 	}
 	if (existing.status === 'invalid') {
 		throw invalidMarkerError(markerPath, existing.reason);
@@ -115,7 +115,7 @@ export function initProject(options: {
 		if (recheck.status === 'ok') {
 			const project = loadProjectFromMarker(markerPath);
 			assertNameMatches(project, requestedName);
-			return { project, created: false };
+			return { project: bindProjectPath(project, cwd), created: false };
 		}
 		if (recheck.status === 'invalid') {
 			throw invalidMarkerError(markerPath, recheck.reason);
@@ -123,10 +123,24 @@ export function initProject(options: {
 		if (recheck.status === 'unreadable') {
 			throw unreadableMarkerError(markerPath, recheck.cause);
 		}
-		const created = insertProject(db, { id: Bun.randomUUIDv7(), name, now: new Date() });
+		const created = insertProject(db, {
+			id: Bun.randomUUIDv7(),
+			name,
+			path: cwd,
+			now: new Date(),
+		});
 		writeProjectMarker(markerPath, { id: created.id, name: created.name });
 		return { project: created, created: true };
 	});
+}
+
+function bindProjectPath(project: Project, directory: string): Project {
+	if (project.path === directory) {
+		return project;
+	}
+	const now = new Date();
+	updateProjectPath(getDatabase(), { id: project.id, path: directory, now });
+	return { ...project, path: directory, updatedAt: now };
 }
 
 function loadProjectFromMarker(markerPath: string): Project {

@@ -17,12 +17,13 @@ PRAGMA busy_timeout = 5000;     -- 避免瞬时锁冲突直接报错
 - 时间列统一使用 TEXT，存 UTC ISO-8601（`YYYY-MM-DDTHH:mm:ss.sssZ`）
 - 主键统一 TEXT（UUIDv7，由 `Bun.randomUUIDv7()` 生成，禁止依赖 SQLite 自增 ID）
 
-## 2. 一期 Schema（version 1）
+## 2. 一期 Schema（当前 version 2）
 
 ```sql
 CREATE TABLE projects (
 	id TEXT PRIMARY KEY,
 	name TEXT NOT NULL,
+	path TEXT,
 	next_task_number INTEGER NOT NULL DEFAULT 1 CHECK (next_task_number >= 1),
 	created_at TEXT NOT NULL,
 	updated_at TEXT NOT NULL
@@ -66,6 +67,7 @@ CREATE INDEX idx_comments_task_created ON comments (task_id, created_at);
 - `derived_from_task_id` 是唯一 Task 关系，自引用；被引用 Task 删除时置空而非级联删除
 - 来源与新 Task 属于同一 Project 由 core 在事务内校验；关系只在创建时写入，避免后续编辑引入循环
 - `next_task_number` 是内部持久化字段，不加入对外 Project 模型；不得根据现存 Task 的最大编号重置
+- `path` 是可空展示字段，由 `init` 在创建或绑定项目时写入当前目录，仅用于 `project list`；不参与 Project 自动发现，目录移动后由用户重新 `init` 修正
 - 禁止提前建 `task_relations` 等未来表
 
 ## 3. 编号分配（`number`）
@@ -106,8 +108,9 @@ COMMIT;
 - 多进程启动时，在取得 `BEGIN IMMEDIATE` 写锁后重新读取 `user_version`，按实际版本决定是否迁移
 - 迁移在事务中执行；失败必须回滚并抛错，不静默继续
 - 已发布迁移只增不改；禁止就地改写历史迁移
+- 数据库版本高于当前程序支持版本时（`user_version > latest`）拒绝打开并报运行错误，提示升级 tasknest；防止旧二进制在新 Schema 上读写
 - 初始化流程（首次运行 / `tasknest init`）负责创建 `~/.tasknest/` 目录、db 文件与 `Personal` 项目记录
-- 当前 version 1 是尚未发布的 Schema 设计；功能发布后新增字段必须走追加迁移
+- version 2 为已发布 v1 的追加迁移：`ALTER TABLE projects ADD COLUMN path TEXT;`，历史记录 `path` 为 `NULL`；禁止修改 version 1
 
 ## 5. 时间与空值映射
 

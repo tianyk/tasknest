@@ -1,12 +1,12 @@
 # TaskNest 一期产品需求文档（AI-first Task CLI）
 
-版本：V1.2
+版本：V1.3
 
 ---
 
 ## 1. 产品概述
 
-TaskNest（任务与项目记忆的栖息地，A home for tasks and memory）是一款面向开发者和 AI Coding Agent 的本地项目任务管理工具。
+TaskNest 是一款面向开发者和 AI Coding Agent 的本地项目任务管理工具。
 
 它不是传统意义上的 Todo List，而是一个：
 
@@ -22,7 +22,6 @@ Local-first、CLI-first、AI-first 的轻量项目任务与上下文管理系统
 - “为什么要这么做？”
 - “开发过程中又发现了什么？”
 - “这个任务是从哪里拆出来的？”
-- “这次开发产生了哪些值得未来继续使用的知识？”
 
 系统主要面向：
 
@@ -36,7 +35,6 @@ Local-first、CLI-first、AI-first 的轻量项目任务与上下文管理系统
 - CLI
 - Local SQLite
 - Skill
-- Memory
 
 一期不提供：
 
@@ -45,8 +43,6 @@ Local-first、CLI-first、AI-first 的轻量项目任务与上下文管理系统
 - 多人协作
 - 账号 / Token
 - 云同步
-
-Memory 属于一期核心模型，一期的数据设计与 AI 使用原则需要明确 Task Context 与长期 Memory 的边界。
 
 最终程序以单个二进制分发：
 
@@ -63,18 +59,16 @@ tasknest
 产品长期模型可以概括为：
 
 ```text
-                    Project
-                       │
-          ┌────────────┴────────────┐
-          │                         │
-          ▼                         ▼
-        Task                      Memory
-          │                         │
-    ┌─────┼─────┐              长期项目知识
-    │     │     │
- Status Context derived_from
-          │
-       Activity
+          Project
+             │
+             ▼
+            Task
+             │
+    ┌────────┼────────┐
+    │        │        │
+ Status   Context  derived_from
+             │
+          Activity
 ```
 
 其中：
@@ -91,17 +85,10 @@ tasknest
 
 这个 Task 发生过什么。
 
-**Memory**
-
-代表：
-
-从过去工作中产生，并且未来处理其他 Task 时仍值得知道的知识。
-
-这是整个产品长期最重要的三个概念：
+产品的两个核心概念：
 
 - Task = 要做什么
 - Activity = 这次工作发生了什么
-- Memory = 以后仍然应该知道什么
 
 ---
 
@@ -128,13 +115,7 @@ Evolve
 Record
    ↓
 记录开发过程与结果
-
-Remember
-   ↓
-沉淀长期项目 Memory
 ```
-
-其中 Remember 只收录跨 Task 仍有价值的信息，不把 Task Activity 直接当作 Memory。
 
 ---
 
@@ -224,21 +205,7 @@ Task 开发过程中产生的：
 
 ---
 
-### 4.4 长期知识不属于 Task
-
-如果一条信息：
-
-即使当前 Task 已经结束，未来处理其他 Task 时仍可能影响 AI 的判断，
-
-那么它应该成为：
-
-**Memory**
-
-而不是永久埋在某个 Task Comment 中。
-
----
-
-### 4.5 AI 按需探索 Context
+### 4.4 AI 按需探索 Context
 
 系统不主动给 AI 注入大量上下文。
 
@@ -281,9 +248,6 @@ get_task(42)
 - Comment / Activity
 - Task Split
 - derived_from
-- Memory
-- Memory Search
-- source_task
 - CLI
 - Skill
 - SQLite
@@ -313,7 +277,6 @@ get_task(42)
 - related_to
 - duplicate
 - Git Commit 自动关联
-- 语义搜索 / Embedding
 
 ---
 
@@ -786,9 +749,7 @@ Agent（一期通过 CLI）可以写：
 
 ---
 
-## 20. Activity 与 Memory 的边界
-
-这是长期设计中的重要原则。
+## 20. Task Activity 的边界
 
 Activity 回答：
 
@@ -809,44 +770,9 @@ Task Activity
 
 ---
 
-Memory 回答：
+## 21. Activity 记录规则
 
-未来处理其他 Task 时，有什么仍然值得知道？
-
-例如：
-
-```text
-列表筛选状态统一由 useListQueryParams() 管理。
-```
-
-或者：
-
-```text
-项目所有 API 请求必须经过 requestClient。
-```
-
-或者：
-
-```text
-任务取消必须使用 canceled，
-禁止用 done 代替。
-```
-
-这些属于：
-
-Project Memory
-
----
-
-## 21. Activity / Memory 判断规则
-
-判断一条信息应该去哪：
-
-如果未来处理另一个 Task 时，这条信息仍可能影响 AI 的决策，则应该成为 Memory。
-
-否则：
-
-Task Activity
+当前 Task 的分析、进度、临时问题与实现结果记录到 Activity。
 
 典型分类：
 
@@ -857,11 +783,6 @@ Task Activity
 | 临时 TypeScript Error | Activity |
 | 当前 Task 暂不支持移动端 | Activity |
 | 当前 Task 等待后端 API | Activity |
-| 所有 API 必须使用 requestClient | Memory |
-| 新页面统一使用 React Query | Memory |
-| 某模块存在不能删除的兼容逻辑 | Memory |
-| 为什么项目选择 SQLite | Memory |
-| 某领域长期业务规则 | Memory |
 
 ---
 
@@ -1040,37 +961,6 @@ tasknest comment 42 "导出字段跟随当前筛选条件"
 tasknest split 42 "支持 PDF 导出"
 ```
 
-Memory 创建：
-
-```bash
-tasknest memory add "列表筛选状态统一由 useListQueryParams() 管理" --type convention --source 42
-```
-
-Memory 搜索：
-
-```bash
-tasknest memory search "列表筛选"
-```
-
-Memory 列表 / 详情：
-
-```bash
-tasknest memory list
-tasknest memory show 17
-```
-
-Memory 修改 / 删除：
-
-```bash
-tasknest memory update 17 --content "..." --type constraint
-tasknest memory delete 17
-```
-
-说明：
-
-- `--type` 必填，固定七类：architecture / decision / convention / constraint / domain / preference / lesson
-- `--source` 可选，指向产生该 Memory 的 Task
-
 ---
 
 ## 27. tasknest list
@@ -1130,10 +1020,6 @@ tasknest mcp
 - list_tasks
 - update_task
 - add_comment
-- search_memories
-- add_memory
-- update_memory
-- delete_memory
 
 不提供大量：
 
@@ -1234,17 +1120,12 @@ get_task(42)
 13. 当前信息不足时可以读取 derived_from Task。
 14. 不无条件遍历整个来源链。
 15. Task Activity 记录本次工作。
-16. 不把所有开发总结都视为长期知识。
-17. 只有跨 Task 仍有价值的信息才进入 Memory。
-18. 开始工作前信息不足时，可以搜索 Memory。
-19. 写入 Memory 前先搜索是否已有同类；过时或错误的知识应修改或删除。
-20. 写入 Memory 时尽量带上 source_task，保持可追溯。
 
 ---
 
 ## 32. SQLite Schema
 
-一期核心四张表。
+一期核心三张表。
 
 ### projects
 
@@ -1300,36 +1181,6 @@ INDEX(task_id, created_at)
 
 ---
 
-### memories
-
-- id
-- project_id
-- type
-- content
-- source_task_id
-- created_by
-- created_at
-- updated_at
-
-约束：
-
-type 固定七类：architecture / decision / convention / constraint / domain / preference / lesson
-
-索引：
-
-```text
-INDEX(project_id, type)
-INDEX(source_task_id)
-```
-
-说明：
-
-- `id` 使用 SQLite INTEGER 主键自增（AUTOINCREMENT，避免删除后复用）；Project / Task 主键仍为 UUIDv7
-- `source_task_id` 可空；来源 Task 删除时置空，Memory 保留
-- 一期搜索使用 LIKE 多关键词匹配，不引入 FTS5 / Embedding
-
----
-
 ## 33. 内部架构
 
 ```text
@@ -1360,12 +1211,6 @@ updateTask()
 updateTaskStatus()
 deleteTask()
 addComment()
-createMemory()
-getMemory()
-listMemories()
-searchMemories()
-updateMemory()
-deleteMemory()
 ```
 
 CLI 调用这套 Core；未来 MCP 接入时复用同一套 Core。
@@ -1384,7 +1229,7 @@ TypeScript
 SQLite
 ```
 
-MCP 延后到 Future（详见 §43）。
+MCP 延后到 Future（详见 §37）。
 
 暂时不引入：
 
@@ -1404,226 +1249,7 @@ Standalone executable。
 
 ---
 
-## 35. Project Memory
-
-Memory 属于一期能力。
-
-```text
-Project
-   │
-   ├── Tasks
-   │
-   └── Memories
-```
-
-Memory 示例：
-
-```text
-#17
-type:
-architecture
-content:
-列表筛选状态统一由
-useListQueryParams() 管理。
-source_task:
-#42 支持导出任务
-created_by:
-agent
-```
-
-建议模型：
-
-```ts
-interface Memory {
-  id: number
-  projectId: string
-  type: MemoryType
-  content: string
-  sourceTaskId?: string
-  createdBy: string
-  createdAt: Date
-  updatedAt: Date
-}
-```
-
----
-
-## 36. Memory 类型
-
-一期固定七类：
-
-- architecture
-- decision
-- convention
-- constraint
-- domain
-- preference
-- lesson
-
-例如：
-
-**architecture**
-
-Server State 统一使用 React Query。
-
-**decision**
-
-项目使用 SQLite。
-
-原因：
-
-Local-first + 单二进制。
-
-**convention**
-
-API hooks 统一放在 `src/api/hooks`。
-
-**constraint**
-
-iPad WebView 必须兼容 iOS 16。
-
-**domain**
-
-状态流转必须通过 `updateTaskStatus`，禁止绕过 `core` 直接改库。
-
----
-
-## 37. Memory 必须支持来源追溯
-
-Memory 保留：
-
-`source_task_id`
-
-例如：
-
-```text
-Task #42
-   │
-   │ 产生长期知识
-   ▼
-Memory #17
-```
-
-以后 AI 看到 Memory：
-
-```text
-列表筛选状态统一由 useListQueryParams() 管理。
-```
-
-如果想了解原因：
-
-```text
-source:
-#42 支持导出任务
-```
-
-可以：
-
-```ts
-get_task(42)
-```
-
-继续了解历史背景。
-
-仍然遵循：
-
-提供关系，而不是复制所有 Context。
-
----
-
-## 38. Memory 不自动全部注入 AI
-
-假设 Project 已有：
-
-500 Memories
-
-不能每次：
-
-```ts
-get_task(42)
-```
-
-都返回：
-
-500 Memories
-
-一期提供：
-
-```bash
-tasknest memory search
-```
-
-Agent 根据当前工作主动搜索。
-
-例如：
-
-```bash
-tasknest memory search "列表筛选"
-```
-
-返回相关 Memory。
-
-一期搜索实现：
-
-- 使用 LIKE 多关键词匹配（限定当前 Project，按更新时间排序）
-- 数据以中文为主、量级有限，不引入 FTS5
-
-不需要引入：
-
-- Embedding
-- Vector Database
-- RAG Infrastructure
-
-真正需要语义搜索时再增加。
-
----
-
-## 39. Memory 工具面
-
-一期通过 CLI 提供：
-
-```bash
-tasknest memory add
-tasknest memory search
-tasknest memory update
-tasknest memory delete
-```
-
-Future 的 MCP 复用同一组能力（search_memories / add_memory / update_memory / delete_memory）。
-
-不要设计大量特殊 Memory Tool。
-
-仍然坚持：
-
-Simple Tools, Powerful Composition。
-
----
-
-## 40. Task 与 Memory 的关系
-
-```text
-                   Project
-                      │
-          ┌───────────┴───────────┐
-          │                       │
-        Tasks                  Memories
-          │                       │
-     Activities               Long-term
-          │                    Knowledge
-          │                       ▲
-          └────── produces ───────┘
-```
-
-可以理解成：
-
-- Task = AI Working Memory / 工作现场
-- Memory = AI Long-term Project Memory / 长期项目知识
-
-Activity 记录工作现场；当信息跨 Task 仍有价值时，才沉淀为 Memory。
-
----
-
-## 41. 一期典型工作流程
+## 35. 一期典型工作流程
 
 初始化：
 
@@ -1675,26 +1301,9 @@ Task #1 最终留下：
 
 需求 + 开发过程 + 分析 + 结果
 
-从工作过程中沉淀长期知识：
-
-```bash
-tasknest memory add "列表筛选状态统一由 useListQueryParams() 管理。" --type convention --source 1
-```
-
-这个 Memory 将继续服务：
-
-```text
-#20
-#35
-#71
-...
-```
-
-其他 Task。
-
 ---
 
-## 42. 一期验收标准
+## 36. 一期验收标准
 
 一期必须完成：
 
@@ -1752,43 +1361,28 @@ AI 可以沿：
 
 按需查询上游 Task。
 
-**Memory**
-
-可以创建 / 编辑 / 删除 / 搜索 Memory。
-
-**Memory Traceability**
-
-Memory 可以追溯到 source_task，并可沿 source_task 继续查询。
-
-**Memory Search**
-
-AI 可以搜索 Memory，而不是一次性读取全部。
-
 **Distribution**
 
 最终为单个二进制程序。
 
 ---
 
-## 43. 最终产品演进路线
+## 37. 最终产品演进路线
 
-### V1 — Local Task + Memory（一期）
+### V1 — Local Task（一期）
 
 - Project
 - Task
 - Status
 - Activity
 - derived_from
-- Memory
-- Memory Search
-- source_task
 - CLI
 - Skill
 - SQLite
 
 核心解决：
 
-AI 和人共同管理“现在要做什么以及做到哪里”，并把跨 Task 仍有价值的知识沉淀为长期项目记忆。
+AI 和人共同管理“现在要做什么以及做到哪里”，并通过 Activity 保留任务的分析、进度与结果。
 
 ---
 
@@ -1803,15 +1397,14 @@ AI 和人共同管理“现在要做什么以及做到哪里”，并把跨 Task
 - Sync
 - Permissions
 - Custom Workflow
-- Semantic Memory Search
 
 不在一期提前实现。
 
 ---
 
-## 44. 产品最终核心思想
+## 38. 产品最终核心思想
 
-整个产品最终可以概括成三个问题：
+产品围绕两个问题：
 
 ```text
 Task
@@ -1820,12 +1413,9 @@ Task
 Activity
 ↓
 这次工作发生了什么？
-Memory
-↓
-以后还应该记住什么？
 ```
 
-以及两种重要关系：
+Task 之间通过 derived_from 记录工作如何演化：
 
 ```text
 Task
@@ -1835,47 +1425,23 @@ Task
 Task
 ```
 
-表示：
-
-工作是如何演化出来的。
-
-以及：
+产品模型：
 
 ```text
-Task
- │
- │ produces
- ▼
-Memory
-```
-
-表示：
-
-工作最终沉淀出了什么长期知识。
-
-因此产品长期模型不是一个简单的 Todo List，而是：
-
-```text
-                     Project
-                        │
-          ┌─────────────┴─────────────┐
-          │                           │
-        Tasks                      Memories
-          │                           │
-          ├── Status              Knowledge
+Project
+   │
+   └── Tasks
           │
-          ├── Activity
-          │
+          ├── Status
+          ├── Context / Activity
           └── derived_from → Task
 ```
 
-一期同时实现 Tasks 与 Memories 两侧。
-
-边界从第一天起就明确：Activity 记录工作现场，Memory 沉淀长期知识。
+一期完成 Task 的创建、执行、上下文记录与拆分闭环。
 
 ---
 
-## 45. 一期 Scope Freeze
+## 39. 一期 Scope Freeze
 
 一期最终只实现：
 
@@ -1899,10 +1465,8 @@ BLOCKED      Split
  └──────┬──────┘
         ↓
  DONE / CANCELED
-        ↓
-     Memory
 ```
 
 一期停止增加新的领域概念。
 
-一期同时完成 Task 工作闭环与长期 Memory 沉淀。
+一期完成 Task 工作闭环。

@@ -36,12 +36,10 @@
 | `src/core/project.ts` | 项目创建与解析 | `createProject` `resolveProject` `listProjects` |
 | `src/core/task.ts` | Task 生命周期与查询 | `createTask` `getTask` `listTasks` `updateTask` `updateTaskStatus` `deleteTask` `splitTask` |
 | `src/core/comment.ts` | Activity / Comment | `addComment` `listComments` |
-| `src/core/memory.ts` | Memory 生命周期与检索 | `createMemory` `getMemory` `listMemories` `searchMemories` `updateMemory` `deleteMemory` |
 | `src/core/errors.ts` | 领域错误 | `ProjectNotFoundError` `TaskNotFoundError` `InvalidStatusTransitionError` 等 |
 | `src/db/database.ts` | 连接、PRAGMA、迁移入口 | `openDatabase` `getDatabase` |
 | `src/db/migrations/` | 版本化迁移 | 按 `PRAGMA user_version` 递增 |
 | `src/db/project_repository.ts` 等 | 数据访问 | 仅返回领域对象，不抛业务错误 |
-| `src/db/memory_repository.ts` | Memory 数据访问 | `insertMemory` `updateMemory` `deleteMemory` `searchMemoriesByKeywords` |
 | `src/config/paths.ts` | `~/.tasknest` 与 marker 路径 | `getTasknestHome` `getDatabasePath` `getProjectMarkerPath` |
 | `src/config/project_discovery.ts` | cwd 向上发现 marker，兜底 Personal | `discoverProject` |
 | `src/config/toml.ts` | TOML 读写（Bun.TOML.parse + 手写序列化） | `readToml` `writeToml` |
@@ -67,7 +65,6 @@
 
 - 时间戳统一为 UTC ISO-8601 字符串（`YYYY-MM-DDTHH:mm:ss.sssZ`），展示时转本地时区
 - Project / Task 主键为 UUIDv7（时间有序）；Task 人类编号为项目内自增正整数 `#number`
-- Memory 主键为 SQLite `INTEGER PRIMARY KEY AUTOINCREMENT`（删除后不复用），直接以 id 展示与引用
 - 编号分配必须在写事务内完成（见 database-schema.md §3）
 
 ### 3.4 错误与输出
@@ -77,15 +74,8 @@
 - Future 的 MCP 接入时捕获领域错误 → 转译为 tool error；绝不使 Server 进程退出
 - 一期 CLI 仅纯文本输出；不提前实现 `--json`
 
-### 3.5 Memory 检索
-
-- 搜索限定当前 Project，使用 LIKE 多关键词匹配（空格拆分、AND 组合），按 `updated_at` 倒序
-- 不使用 FTS5 / Embedding；数据规模增长或需要相关度排序时再迁移
-- 不自动注入：`getTask` 等读取接口不附带 Memory，Agent 通过 `searchMemories` 主动检索
-- Activity 与 Memory 的边界由 core 把握：只有跨 Task 仍有价值的信息才写入 Memory
-
 ## 4. 明确不做（一期）
 
-Web UI、Remote Server、MCP Server / MCP Tools、账号 / 权限、多人协作、云同步、语义搜索 / Embedding / FTS5、附件、标签、优先级、截止日期、通知、自定义 Status / Workflow、复杂 Task Relation、Git Commit 自动关联。
+Web UI、Remote Server、MCP Server / MCP Tools、账号 / 权限、多人协作、云同步、附件、标签、优先级、截止日期、通知、自定义 Status / Workflow、复杂 Task Relation、Git Commit 自动关联。
 
 完整清单见 `prd.md` §5；领域约束见 `AGENTS.md` §1。

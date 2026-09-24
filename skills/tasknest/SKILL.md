@@ -24,11 +24,6 @@ description: 使用 tasknest CLI 管理当前项目 Task 的官方规范（MCP �
 12. 当前信息不足时可以读取 `derived_from` Task。
 13. 不无条件遍历整个来源链。
 14. Task Activity 记录本次工作。
-15. 不把所有开发总结都视为长期知识。
-16. 只有跨 Task 仍有价值的信息才进入 Memory。
-17. 开始工作前信息不足时，可以搜索 Memory。
-18. 写入 Memory 前先搜索是否已有同类；过时或错误的知识应修改或删除。
-19. 写入 Memory 时尽量带上 source_task，保持可追溯。
 
 ## 常用入口（规划中）
 
@@ -42,15 +37,9 @@ tasknest block 42                        # 阻塞
 tasknest done 42                         # 完成
 tasknest cancel 42                       # 不再实现（禁止用 done 表达）
 tasknest split 42 "支持 PDF 导出"        # 拆分并建立 derived_from
-tasknest memory add "..." --type convention --source 42  # 沉淀长期知识
-tasknest memory search "列表筛选"        # 检索 Memory
-tasknest memory list                     # Memory 列表
-tasknest memory show 17                  # Memory 详情
-tasknest memory update 17 --content "..." --type constraint  # 修正
-tasknest memory delete 17                # 删除错误/过时知识
 ```
 
-MCP Tools 属 Future（规划：`list_projects` / `create_task` / `get_task` / `list_tasks` / `update_task` / `add_comment` / `search_memories` / `add_memory` / `update_memory` / `delete_memory`）。
+MCP Tools 属 Future（规划：`list_projects` / `create_task` / `get_task` / `list_tasks` / `update_task` / `add_comment`）。
 
 ## 调用方式
 

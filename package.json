@@ -1,7 +1,7 @@
 {
 	"name": "tasknest",
 	"version": "0.1.0",
-	"description": "TaskNest: a home for tasks and memory — AI-first local task CLI for developers and coding agents",
+	"description": "TaskNest：面向开发者与 AI Coding Agent 的本地项目任务与上下文管理工具",
 	"private": true,
 	"type": "module",
 	"bin": {

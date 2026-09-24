@@ -2,12 +2,12 @@
 
 **TaskNest = Task + Nest**：Task 是任务，Nest 是巢、聚集和沉淀的地方。
 
-> TaskNest：任务与项目记忆的栖息地。
-> A home for tasks and memory.
+> TaskNest：任务的栖息地。
+> A home for tasks.
 
 面向开发者与 AI Coding Agent 的本地项目任务管理工具。
 
-Local-first、CLI-first、AI-first：记录“要做什么”（Task）、“这次工作发生了什么”（Activity），以及“以后仍然应该知道什么”（Memory）。最终以单个二进制 `tasknest` 分发，无需额外 Runtime。
+Local-first、CLI-first、AI-first：记录“要做什么”（Task）和“这次工作发生了什么”（Activity）。最终以单个二进制 `tasknest` 分发，无需额外 Runtime。
 
 > 当前状态：**工程脚手架阶段**，业务命令尚未实现。产品需求见 [prd.md](./prd.md)。
 

@@ -9,7 +9,7 @@
 ## Current Pitfalls
 
 - Bun 1.3.0 零测试时退出码为 1，保留 smoke.test.ts。
-- AGENTS.md、设计文档与官方 Skill 仍有旧 Memory 定义；AGENTS.md 修改需用户单独授权。
+- AGENTS.md 仍有旧产品 Memory 定义；修改需用户单独授权，其他产品文档已同步 PRD V1.3。
 
 ## Stable Decisions
 

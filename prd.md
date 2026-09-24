@@ -1,6 +1,6 @@
 # TaskNest 一期产品需求文档（AI-first Task CLI）
 
-版本：V1.3
+版本：V1.4
 
 ---
 
@@ -430,6 +430,13 @@ Personal
 
 最近 Project 优先。
 
+发现边界与异常：
+
+- 当前目录位于 `$HOME` 内时，向上检查至 `$HOME` 后停止；位于 `$HOME` 外时，检查至文件系统根目录后停止。
+- 未找到项目标记时，使用 `~/.tasknest/project.toml` 对应的 Personal。
+- 找到标记但 TOML 无效、缺少有效 ID 或无法读取时，报告错误，不跳过该标记继续寻找其他 Project。
+- 标记引用的 Project 在数据库中不存在时，报告 Project 不存在，不自动改绑到 Personal。
+
 ---
 
 ## 10. Personal Project
@@ -501,6 +508,15 @@ tasknest init
 tasknest init --name "Foo Project"
 ```
 
+初始化规则：
+
+- 全局初始化可重复执行；已有数据必须保留，同一个全局数据目录只初始化一个 Personal。
+- `init` 针对当前目录建立标记；当前目录已有有效标记时，返回已绑定的 Project，不重复创建。
+- 已有标记时传入相同的 `--name` 可重复执行；传入不同名称报错，一期不通过 `init` 重命名 Project。
+- 当前目录没有标记时，显式 `init` 可以创建独立项目，即使父目录已有项目标记。
+- 项目名称去除首尾空白后不能为空；标记或数据库异常时报告错误，不覆盖已有标记或数据库。
+- 在 `$HOME` 执行 `init` 时，使用该目录已有的 Personal 标记，不能覆盖为普通 Project。
+
 ---
 
 ## 12. Task
@@ -535,6 +551,11 @@ interface Task {
 `#42`
 
 Number 在 Project 内递增。
+
+- 从 1 开始；成功创建过的编号不复用，即使对应 Task 已被删除。
+- 删除当前最大编号后，新 Task 仍使用更大的编号；例如删除 #3 后，下一个编号为 #4。
+- 同一 Project 的多个 CLI 进程并发创建 Task 时，编号必须唯一。
+- 创建失败并回滚的编号可以再次使用；不承诺编号始终连续。
 
 约束：
 
@@ -593,6 +614,28 @@ DONE
 任何未完成 Task 都可以：
 
 → CANCELED
+
+完整状态转换规则：
+
+| 当前状态 | 允许变更到的其他状态 |
+| --- | --- |
+| todo | in_progress / done / canceled |
+| in_progress | todo / blocked / done / canceled |
+| blocked | todo / in_progress / done / canceled |
+| done | todo |
+| canceled | todo |
+
+- 新建 Task 固定为 `todo`；允许直接将已完成的待办标为 `done`。
+- `reopen` 等价于将状态设置为 `todo`，遵循上表。
+- `done` / `canceled` 如需继续处理，先回到 `todo`；禁止直接在两个结束状态之间切换。
+- 设置为当前状态是幂等操作：返回成功，不修改时间字段，不产生重复活动。
+- 不在表内的转换报领域错误，保留原状态。
+
+时间字段规则：
+
+- 实际进入 `done` 时，将 `completed_at` 设为本次变更时间。
+- 处于其他状态时，`completed_at` 为空；重新打开时清空，取消时不写完成时间。
+- 实际状态变化更新 `updated_at`；`created_at` 始终保留。
 
 ---
 
@@ -661,6 +704,8 @@ Description 表示 Task 当前相对稳定的主体描述。
 ```
 
 Description 可选。
+
+Title 去除首尾空白后不能为空。Description 保留正文与换行；空字符串表示清空描述。
 
 允许：
 
@@ -747,6 +792,12 @@ Agent（一期通过 CLI）可以写：
 - progress
 - result
 
+CLI 通过 `--type` 指定活动类型，通过 `--author-type agent` 标记 Agent，通过可选的 `--author` 记录名称（见 §26）。
+
+- `comment` / `analysis` / `progress` / `result` 均可显式写入，正文不能全为空白。
+- `system` 类型与 `system` 作者仅作内部保留，一期不开放 CLI 参数，也不自动生成状态变更活动。
+- 一期 Comment 仅新增和读取，不提供编辑命令；`updated_at` 创建时为空，并保持为空。
+
 ---
 
 ## 20. Task Activity 的边界
@@ -821,6 +872,12 @@ derived_from:
 
 完全合法。
 
+拆分规则：
+
+- 来源 Task 必须存在且属于当前 Project；来源可以处于任意状态。
+- 新 Task 使用新编号、给定标题及可选描述，状态固定为 `todo`，`derived_from` 指向来源 Task。
+- 不复制来源 Task 的描述和评论，不改变来源 Task 的状态。
+
 ---
 
 ## 23. derived_from
@@ -859,6 +916,10 @@ derived_from:
 
 `task_relations`
 
+一期仅通过 `split` 在创建 Task 时建立 `derived_from`，不能通过 `edit` 修改关系。
+
+删除来源 Task 后，派生 Task 保留，`derived_from` 清空；来源 Task 自身的评论随其删除。
+
 ---
 
 ## 24. CLI
@@ -879,6 +940,7 @@ tasknest project list
 
 ```bash
 tasknest add "支持导出任务"
+tasknest add "支持导出任务" --description "第一版支持 Excel"
 ```
 
 列表：
@@ -896,14 +958,38 @@ tasknest show 42
 修改：
 
 ```bash
-tasknest edit 42
+tasknest edit 42 --title "支持 Excel 导出"
+tasknest edit 42 --description "导出字段跟随筛选条件"
+tasknest edit 42 --description ""
 ```
+
+`edit` 至少提供 `--title` / `--description` 中一个参数；两者可同时提供。未提供的字段保持不变，无修改参数时报参数错误，一期不启动交互式编辑器。
 
 删除：
 
 ```bash
 tasknest delete 42
 ```
+
+`delete` 显式执行硬删除，不再交互确认；任务不存在时报错。关联评论随任务删除，派生任务保留并清空来源关系。
+
+### 参数、输出与退出码
+
+- 所有命令支持非交互调用；任务编号为当前 Project 内的正整数。
+- `--help` 显示帮助，`--version` 显示版本；二者均不初始化或修改项目数据。
+- 未知命令、未知参数、重复参数、缺少必填值、无效枚举及空标题 / 空评论均报参数错误。
+- `--title` / `--description` / `--author` 等字符串通过参数传入，支持经 shell 引号包裹的空格与换行；一期不增加交互输入或编辑器协议。
+- 成功信息与查询结果写入 stdout，错误中文文案写入 stderr，不输出 stack trace；一期不支持 `--json`。
+- `show` 返回当前 Task 的字段、可用的来源编号与标题，以及按创建时间排列的评论；不递归展开来源 Task。
+- `project` 显示当前 Project；`project list` 包含 Personal，按创建时间升序、ID 升序稳定排序。
+
+| 退出码 | 含义 |
+| --- | --- |
+| 0 | 成功，包括帮助、空列表、幂等操作 |
+| 1 | 文件、数据库、锁等待超时等运行错误，或未分类的内部错误 |
+| 2 | 命令与参数无效，包括 core 检出的输入值错误 |
+| 3 | 指定的 Task 或 Project 不存在 |
+| 4 | 状态转换、标记内容或已有项目绑定等业务规则不允许 |
 
 ---
 
@@ -945,6 +1031,8 @@ tasknest reopen 42
 tasknest status 42 in_progress
 ```
 
+`start` / `block` / `done` / `cancel` / `reopen` 分别对应 `in_progress` / `blocked` / `done` / `canceled` / `todo`，与通用 `status` 命令共用 §14 的转换规则。
+
 ---
 
 ## 26. Context CLI
@@ -953,12 +1041,19 @@ tasknest status 42 in_progress
 
 ```bash
 tasknest comment 42 "导出字段跟随当前筛选条件"
+tasknest comment 42 "当前 API 缺少导出接口" --type analysis --author-type agent --author codex
 ```
+
+- `--type`：`comment` / `analysis` / `progress` / `result`，默认 `comment`。
+- `--author-type`：`user` / `agent`，默认 `user`。
+- `--author`：可选作者名称；未提供时为空，显式提供时去除首尾空白后不能为空。
+- 作者字段只用于记录来源，不代表账号或权限。
 
 拆分：
 
 ```bash
 tasknest split 42 "支持 PDF 导出"
+tasknest split 42 "支持 PDF 导出" --description "单独实现 PDF 格式"
 ```
 
 ---
@@ -997,6 +1092,8 @@ tasknest list --all
 tasknest list --status blocked
 tasknest list --status done
 ```
+
+`--status` 接受一个固定状态值，与 `--all` 互斥；无论使用哪种过滤方式，结果都按 Task 编号升序排列。
 
 ---
 
@@ -1120,6 +1217,9 @@ get_task(42)
 13. 当前信息不足时可以读取 derived_from Task。
 14. 不无条件遍历整个来源链。
 15. Task Activity 记录本次工作。
+16. 使用显式参数非交互编辑 Task；不调用交互式编辑器。
+17. Agent 写活动时显式传入 `--author-type agent` 与对应 `--type`，可用 `--author` 标识名称。
+18. 结束状态的 Task 需要继续执行时，先 `reopen`，再 `start`。
 
 ---
 
@@ -1131,8 +1231,11 @@ get_task(42)
 
 - id
 - name
+- next_task_number
 - created_at
 - updated_at
+
+`next_task_number` 是项目内下一个可分配任务编号，初始为 1，仅由 Task 创建流程推进；它是内部存储字段，不提供用户编辑入口。
 
 ---
 
@@ -1211,6 +1314,7 @@ updateTask()
 updateTaskStatus()
 deleteTask()
 addComment()
+splitTask()
 ```
 
 CLI 调用这套 Core；未来 MCP 接入时复用同一套 Core。
@@ -1319,6 +1423,10 @@ Task #1 最终留下：
 
 Task 可以只有 Title。
 
+**Task Number**
+
+编号在 Project 内递增且成功创建后不复用；删除最大编号以及并发创建均满足此规则。
+
 **Status**
 
 完整支持：
@@ -1328,6 +1436,8 @@ Task 可以只有 Title。
 - blocked
 - done
 - canceled
+
+状态转换、幂等行为与 `completed_at` 按 §14 验收。
 
 **Context**
 
@@ -1352,6 +1462,8 @@ AI 可以通过 CLI（配合 Skill）：
 - comment
 
 管理 Task。
+
+编辑和活动写入支持 §24 / §26 的非交互参数；参数错误、业务错误与运行错误使用约定退出码。
 
 **Context Exploration**
 

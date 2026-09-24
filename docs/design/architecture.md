@@ -28,6 +28,7 @@
 - `src/config` 提供路径解析、项目标记发现、TOML 读写能力，被 core 调用
 - `src/types` 只放共享类型，不依赖其他 src 模块
 - 禁止反向依赖（db → core、core → cli、core → mcp）
+- core 确定业务事务边界，db 提供事务执行与 repository 操作；SQL 和事务语句都留在 db，编号分配与写入策略见 database-schema.md §3
 
 ## 2. 模块职责
 
@@ -58,21 +59,39 @@
 ### 3.2 项目解析
 
 - 从 `process.cwd()` 逐级向上查找 `.tasknest/project.toml`，命中即停
-- 向上查找不得越过 `$HOME`；未命中时落到 `~/.tasknest/project.toml` 对应的 `Personal` 项目
+- 按 PRD §9 确定查找边界：遇到 `$HOME` 或文件系统根目录即停止；未命中时解析全局 Personal 标记
+- 标记读取 / TOML 解析由 config 完成，core 负责判断标记有效性与 Project 是否存在；失败时按 PRD §9 报错，不静默切换 Project
+- 初始化在写入前重新检查当前目录标记，按 PRD §11 实现重复调用行为；文件写入不能覆盖已有的不同绑定
 - 解析结果为领域对象 `Project`；CLI 调用同一实现（未来 MCP 以进程 cwd 解析）
 
 ### 3.3 时间与编号
 
 - 时间戳统一为 UTC ISO-8601 字符串（`YYYY-MM-DDTHH:mm:ss.sssZ`），展示时转本地时区
-- Project / Task 主键为 UUIDv7（时间有序）；Task 人类编号为项目内自增正整数 `#number`
-- 编号分配必须在写事务内完成（见 database-schema.md §3）
+- Project / Task / Comment 主键为 UUIDv7（时间有序）；Task 编号由 Project 的内部持久化游标分配（见 database-schema.md §3）
+- 编号分配与 Task 插入共用 `BEGIN IMMEDIATE` 写事务，支持多个 CLI 进程；禁止使用现存 Task 最大编号作为分配依据
+- 状态转换表及时间字段语义以 PRD §14 为准，由 core 统一校验和计算，CLI 状态别名只做参数转换
 
 ### 3.4 错误与输出
 
 - core 抛出领域错误；错误类集中定义在 `src/core/errors.ts`
-- CLI 捕获领域错误 → 输出中文文案 + 稳定非零退出码（禁止 stack trace）
+- CLI 捕获领域错误 → 按 PRD §24 输出中文文案与退出码（禁止 stack trace），参数错误和业务错误采用不同映射
 - Future 的 MCP 接入时捕获领域错误 → 转译为 tool error；绝不使 Server 进程退出
 - 一期 CLI 仅纯文本输出；不提前实现 `--json`
+
+### 3.5 CLI 参数与输入校验
+
+- 参数名称、默认值、互斥关系与非交互行为以 PRD §24-§27 为准，CLI 不另定业务规则
+- CLI 解析参数数量、已知选项和基本格式；core 仍须校验标题、评论、状态、作者类型和 Project / Task 归属，保证未来入口复用相同规则
+- `--help` / `--version` 在调用初始化用例前返回；正常业务命令再进入 core 的项目解析流程
+- `edit` 未传的字段不进入更新集合，显式空描述转换为清空意图；不能把未传参数误判为清空
+- `--author-type` / `--type` 是内容元数据，不引入账号或权限校验
+
+### 3.6 验证方式
+
+- 遵循 AGENTS.md：不编写单元测试，保留 lint、typecheck、构建与现有检查
+- 业务验收从真实 CLI 或跨层集成入口执行，使用隔离目录和真实 SQLite，记录输入、输出、退出码及数据结果
+- 至少覆盖 PRD §36，以及重复初始化、无效标记、删除后编号不复用、并发创建、非法状态转换、幂等状态更新与来源删除后的派生任务
+- 一期验证不为单元测试引入 mock、依赖注入框架或额外测试依赖
 
 ## 4. 明确不做（一期）
 

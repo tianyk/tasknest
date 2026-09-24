@@ -15,7 +15,7 @@ src/db/          SQLite schema / 迁移 / repository
 src/config/      全局路径 / 项目标记发现 / TOML 读写
 src/mcp/         协议入口占位（Future）
 src/types/       共享类型
-tests/           bun test
+tests/           现有检查 / 集成与端到端验收（禁止单元测试）
 docs/design/     实现设计文档
 skills/tasknest/ 官方 Agent Skill
 ```
@@ -126,15 +126,13 @@ AGENTS.md
 
 ## 1. 一期范围冻结（Scope Freeze）
 
-- 一期范围以 `prd.md` §5 为准，只实现：Project Discovery / Personal / Task / Status / Description / Comment / Split / derived_from / Memory / Memory Search / source_task / CLI / Skill / SQLite / 单二进制
+- 一期范围以 `prd.md` §5 为准，只实现：Project Discovery / Personal / Task / Status / Description / Comment / Split / derived_from / CLI / Skill / SQLite / 单二进制
 - 以下内容一期明确禁止提前实现：Web UI、Remote Server、MCP Server / MCP Tools、账号 / Token / 权限、多人协作、云同步、附件、标签、优先级、截止日期、通知、自定义 Workflow、自定义 Status、复杂 Task Relation（parent/child/depends_on/blocks/related_to/duplicate）、Git Commit 自动关联、语义搜索 / Embedding / FTS5
 - 领域约束：
   - Task 是唯一工作单元，不存在 SubTask / ChildTask 类型
   - Status 固定五态：`todo` / `in_progress` / `blocked` / `done` / `canceled`
   - 一期唯一 Task 关系：`derived_from`
-  - Memory 类型固定七类：architecture / decision / convention / constraint / domain / preference / lesson
-  - Activity 与 Memory 的边界遵循 `prd.md` §20 / §21：只有跨 Task 仍有价值的信息才写入 Memory，不得把开发总结默认当作长期知识
-  - Memory 必须保留 `source_task` 追溯（可空）；不自动全量注入 AI，检索走 `searchMemories`
+  - Task 的分析、进度、临时问题与实现结果记录到 Activity / Comment，遵循 `prd.md` §20 / §21
   - 取消的任务必须用 `canceled`，禁止用 `done` 表达“不做了”
 - 新增任何领域概念前，必须先修改 `prd.md` 并获得用户确认
 
@@ -152,7 +150,7 @@ DB:          bun:sqlite（内置）
 TOML:        Bun.TOML.parse（内置）
 UUID:        Bun.randomUUIDv7（内置）
 Binary:      bun build --compile
-Test:        bun test
+Test:        bun test（现有检查 / 集成与端到端验收）
 Lint:        ESLint 9 flat config + typescript-eslint
 ```
 
@@ -168,6 +166,12 @@ FORBIDDEN
 - 引入 ORM（Prisma / Drizzle / TypeORM 等）
 - 引入 Web 框架、Vector DB、Embedding、RAG 基础设施
 - 使用 CommonJS（`require` / `module.exports`）
+- 不允许编写单元测试，包括新增单元测试文件或在现有文件中扩写单元测试用例
+
+验证约束：
+- 功能验证采用 lint、类型检查、构建、真实 CLI 验收及必要的集成 / 端到端验证
+- 现有脚手架检查可以继续运行；不得新增针对独立函数、类或模块的单元测试，也不得通过改名为集成测试规避此要求
+- 集成 / 端到端验收使用临时目录和真实 SQLite，不得污染用户的 `~/.tasknest` 数据
 
 ---
 
@@ -191,14 +195,14 @@ FORBIDDEN
 REQUIRED
 - `src/cli` 只做命令解析、参数校验、输出与退出码，不得直接访问 `src/db`
 - `src/mcp` 为一期占位目录（MCP 属 Future）；接入时只做协议转换（stdio JSON-RPC ↔ core 调用），不得直接访问 `src/db`
-- `src/core` 承载全部业务用例（`createProject` / `resolveProject` / `createTask` / `getTask` / `listTasks` / `updateTask` / `updateTaskStatus` / `deleteTask` / `addComment` / `createMemory` / `searchMemories` / `updateMemory` / `deleteMemory` 等）
-- `src/db` 只负责 schema、迁移与持久化，不得包含业务规则
+- `src/core` 承载全部业务用例（`createProject` / `resolveProject` / `createTask` / `getTask` / `listTasks` / `updateTask` / `updateTaskStatus` / `deleteTask` / `addComment` / `splitTask` 等）
+- `src/db` 只负责 schema、迁移与持久化；SQL 仅允许出现在此层，不得包含业务规则
 - `src/config` 负责 `~/.tasknest` 路径、project marker 发现、TOML 读写
 - `src/types` 存放共享类型，不得依赖其他 src 模块
 
 FORBIDDEN
 - CLI 与未来 MCP 各自实现一遍业务逻辑
-- 在 `src/core` 之外拼 SQL
+- 在 `src/db` 之外编写或拼接 SQL
 - 反向依赖（db → core、core → cli 等）
 
 ---
@@ -209,7 +213,7 @@ REQUIRED
 - `src/**` 与 `tests/**` 文件名统一 `lower_snake_case`
 - 目录名统一 `lower_snake_case`
 - 导出函数与变量 `camelCase`；类型 / 接口 `PascalCase`；常量 `UPPER_SNAKE_CASE`
-- 测试文件命名 `<module>.test.ts`
+- 集成 / 端到端测试文件命名 `<scenario>.test.ts`；文件命名规则不构成编写单元测试的许可
 - 复合语义使用下划线连接，例如 `project_discovery.ts`
 
 FORBIDDEN
@@ -225,7 +229,7 @@ FORBIDDEN
 2. 在 `src/db` 定义 schema / 迁移 / repository
 3. 在 `src/core` 实现业务用例（抛领域错误）
 4. 在 `src/cli` 接入命令（仅调用 core）
-5. 补充 `tests/` 用例
+5. 执行静态检查、构建与真实 CLI 验收；必要时补充集成 / 端到端验证，禁止编写单元测试
 6. 同步 `skills/tasknest/SKILL.md`（若影响 Agent 使用方式）
 
 禁止从 CLI 开始实现业务；MCP 属 Future，接入时同样只能调用 core。
@@ -237,8 +241,8 @@ FORBIDDEN
 - 全局数据目录：`~/.tasknest/`（`tasknest.db` / `config.toml` / `project.toml`）
 - 项目内 `.tasknest/project.toml` 只负责定位 Project，不保存 Task 数据
 - 时间统一存 UTC ISO-8601 字符串，展示层转本地时区
-- 主键：Project / Task 使用 UUIDv7；`memories` 使用 `INTEGER PRIMARY KEY AUTOINCREMENT`（本地自增，删除后不复用）
-- 人类编号 `#number` 在 Project 内对 Task 递增，`UNIQUE(project_id, number)`；Memory 直接使用自增 id 展示与引用
+- 主键：Project / Task / Comment 使用 UUIDv7
+- 人类编号 `#number` 在 Project 内递增且成功创建后不复用，`UNIQUE(project_id, number)`；编号分配与 Task 插入必须在同一写事务中完成
 - 迁移使用 `PRAGMA user_version`，只增不改；已发布迁移禁止就地改写
 - 详细规范见 `docs/design/database-schema.md`
 
@@ -246,8 +250,8 @@ FORBIDDEN
 
 ## 7. Error & Output Contract
 
-- `src/core` 抛领域错误（如 `TaskNotFoundError` / `ProjectNotFoundError` / `MemoryNotFoundError`），错误类集中在 `src/core/errors.ts`
-- CLI 捕获领域错误，输出可读中文文案与稳定的非零退出码；禁止裸露 stack trace
+- `src/core` 抛领域错误（如 `TaskNotFoundError` / `ProjectNotFoundError` / `InvalidStatusTransitionError`），错误类集中在 `src/core/errors.ts`
+- CLI 捕获领域错误，输出可读中文文案与稳定的非零退出码（见 `prd.md` §24）；禁止裸露 stack trace
 - Future 的 MCP 接入时将错误转译为 tool error，不得使 Server 进程崩溃
 - 一期 CLI 输出为纯文本；`--json` 属后续能力，不得提前实现
 
@@ -273,8 +277,6 @@ FORBIDDEN
 | 了解数据目录 / Project 发现 / Personal | `prd.md` §6-§11 |
 | 写 Task / Status / Comment 逻辑 | `prd.md` §12-§21 + `docs/design/database-schema.md` |
 | 写 split / derived_from | `prd.md` §22-§23 |
-| 写 Memory / 搜索逻辑 | `prd.md` §35-§39 + `docs/design/database-schema.md` |
-| 写 Memory CLI | `prd.md` §26 / §39 + `docs/design/architecture.md` |
 | 写 CLI 命令 | `prd.md` §24-§27 |
 | （Future）写 MCP Server / Tools | `prd.md` §28-§30 + `docs/design/architecture.md` |
 | 更新官方 Skill | `prd.md` §31 + `skills/tasknest/SKILL.md` |
@@ -288,8 +290,9 @@ FORBIDDEN
 
 - `bun run lint:check` 通过
 - `bun run typecheck` 通过
-- `bun test` 通过；核心用例（project 发现、状态流转、derived_from、Memory 增删改查与搜索）必须有测试覆盖
+- `bun test` 中现有检查及集成 / 端到端验收通过；禁止新增或扩写单元测试
+- Project 发现、状态流转、derived_from、编号不复用与并发写入须经过真实 CLI / 集成验收，并记录验证结果
 - `bun run build` 产出可执行 `dist/tasknest`
 - CLI 行为来自 core 实现；未来 MCP 必须复用同一 core
-- 未越出一期范围，未提前实现 Memory / Web / 复杂关系
+- 未越出一期范围，未提前实现 Web / 复杂关系
 - 任务结束已追加 `.memory/daily/{YYYY-MM-DD}.md`

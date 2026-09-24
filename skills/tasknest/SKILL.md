@@ -24,6 +24,10 @@ description: 使用 tasknest CLI 管理当前项目 Task 的官方规范（MCP �
 12. 当前信息不足时可以读取 `derived_from` Task。
 13. 不无条件遍历整个来源链。
 14. Task Activity 记录本次工作。
+15. 使用 `edit --title` / `--description` 非交互修改任务；空描述表示清空，未传的字段保持不变。
+16. Agent 写活动时显式传入 `--author-type agent` 与对应 `--type`，可用 `--author` 标识名称。
+17. 已完成或取消的 Task 如需继续执行，先 `reopen` 回到 `todo`，再 `start`；状态转换以 `prd.md` §14 为准。
+18. `delete` 会硬删除任务及其评论；保留工作记录但决定不再做时使用 `cancel`。
 
 ## 常用入口（规划中）
 
@@ -31,12 +35,18 @@ description: 使用 tasknest CLI 管理当前项目 Task 的官方规范（MCP �
 tasknest add "支持导出任务"              # 创建 Task（可只有标题）
 tasknest list                            # 当前 Project 的未完成 Task
 tasknest show 42                         # 查看详情与 Activity
+tasknest edit 42 --title "支持 Excel 导出" # 修改标题
+tasknest edit 42 --description "只支持 Excel" # 修改描述
+tasknest edit 42 --description ""        # 清空描述
 tasknest comment 42 "第一版只支持导出 Excel" # 补充 Context
+tasknest comment 42 "缺少导出接口" --type analysis --author-type agent --author codex
 tasknest start 42                        # 开始
 tasknest block 42                        # 阻塞
 tasknest done 42                         # 完成
 tasknest cancel 42                       # 不再实现（禁止用 done 表达）
+tasknest reopen 42                       # 回到 todo
 tasknest split 42 "支持 PDF 导出"        # 拆分并建立 derived_from
+tasknest split 42 "支持 PDF 导出" --description "单独实现 PDF 格式"
 ```
 
 MCP Tools 属 Future（规划：`list_projects` / `create_task` / `get_task` / `list_tasks` / `update_task` / `add_comment`）。
@@ -44,6 +54,9 @@ MCP Tools 属 Future（规划：`list_projects` / `create_task` / `get_task` / `
 ## 调用方式
 
 - 一期统一使用 tasknest CLI（目标 Agent 均具备 shell 能力）
+- 命令不要求交互输入；错误写入 stderr，退出码含义见 `prd.md` §24，不能只根据输出文字判断成功
+- 活动类型开放 `comment` / `analysis` / `progress` / `result`；作者类型开放 `user` / `agent`，`system` 不可由 CLI 指定
+- `list --all` 与 `list --status` 互斥；无效参数应修正后再调用
 - MCP 属 Future：接入后优先 MCP Tools，并与 CLI 复用同一 core
 
 ## 上下文探索原则

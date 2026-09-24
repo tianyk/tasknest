@@ -24,7 +24,7 @@ bun install          # 安装开发依赖
 bun run dev          # 运行占位入口（--watch）
 bun run typecheck    # 类型检查
 bun run lint:check   # ESLint 检查
-bun test             # 运行测试
+bun test             # 运行现有检查及集成 / 端到端验收
 bun run build        # 编译单二进制 dist/tasknest
 ```
 
@@ -37,7 +37,7 @@ src/db/          schema / 迁移 / repository
 src/config/      ~/.tasknest 路径、项目标记发现、TOML 读写
 src/mcp/         MCP 占位（Future）
 src/types/       共享类型
-tests/           bun test
+tests/           现有检查 / 集成与端到端验收（禁止单元测试）
 docs/design/     实现设计文档
 skills/tasknest/ 官方 Agent Skill
 .memory/         AI 协作工作记忆（Daily / Summary）
@@ -55,7 +55,8 @@ skills/tasknest/ 官方 Agent Skill
 
 ## 开发约定
 
-- 提交前必须通过 `bun run lint:check`、`bun run typecheck`、`bun test`
+- 验收须通过 `bun run lint:check`、`bun run typecheck`、`bun test` 与 `bun run build`
+- 不允许新增或扩写单元测试；功能通过真实 CLI、必要的集成 / 端到端验收验证，验证数据使用隔离目录
 - 提交遵循 Conventional Commits，描述使用中文
 - 任务结束须追加 `.memory/daily/{YYYY-MM-DD}.md`
 - 其余强约束见 [AGENTS.md](./AGENTS.md)

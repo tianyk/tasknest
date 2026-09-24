@@ -3,10 +3,10 @@ name: tasknest
 description: 使用 tasknest CLI 管理当前项目 Task 的官方规范（MCP 为 Future 能力）。当用户提出未来要做的开发工作、需要查看/更新任务状态、记录开发过程，或需要沿 derived_from 探索任务上下文时使用。默认使用当前目录所属 Project，无需每次传 Project。
 ---
 
-# tasknest Skill（一期草案）
+# tasknest Skill（一期）
 
-> 命令尚未实现；本文件先固化 Agent 使用规范（来源 `prd.md` §31），随一期功能落地同步更新。MCP 属 Future，不在一期。
-> 权威需求：`prd.md` §24-§31。
+> 命令已随一期实现落地；本文件固化 Agent 使用规范（来源 `prd.md` §31）。MCP 属 Future，不在一期。
+> 权威需求：`prd.md` §24-§31；输出与退出码以 CLI 实际行为为准。
 
 ## Agent 行为规则
 
@@ -29,9 +29,11 @@ description: 使用 tasknest CLI 管理当前项目 Task 的官方规范（MCP �
 17. 已完成或取消的 Task 如需继续执行，先 `reopen` 回到 `todo`，再 `start`；状态转换以 `prd.md` §14 为准。
 18. `delete` 会硬删除任务及其评论；保留工作记录但决定不再做时使用 `cancel`。
 
-## 常用入口（规划中）
+## 常用入口
 
 ```bash
+tasknest init                            # 初始化当前目录 Project（可选 --name）
+tasknest project                         # 显示当前 Project；project list 列出全部
 tasknest add "支持导出任务"              # 创建 Task（可只有标题）
 tasknest list                            # 当前 Project 的未完成 Task
 tasknest show 42                         # 查看详情与 Activity
@@ -55,6 +57,8 @@ MCP Tools 属 Future（规划：`list_projects` / `create_task` / `get_task` / `
 
 - 一期统一使用 tasknest CLI（目标 Agent 均具备 shell 能力）
 - 命令不要求交互输入；错误写入 stderr，退出码含义见 `prd.md` §24，不能只根据输出文字判断成功
+- 成功输出示例：`已创建 #12 支持导出任务`；`list` 行格式为 `#编号 [状态] 标题`（状态列固定宽度，编号升序）
+- 默认进入当前目录所属 Project；无标记时进入 Personal，无需显式传 Project
 - 活动类型开放 `comment` / `analysis` / `progress` / `result`；作者类型开放 `user` / `agent`，`system` 不可由 CLI 指定
 - `list --all` 与 `list --status` 互斥；无效参数应修正后再调用
 - MCP 属 Future：接入后优先 MCP Tools，并与 CLI 复用同一 core

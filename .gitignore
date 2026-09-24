@@ -4,6 +4,9 @@ node_modules/
 # 构建产物
 dist/
 
+# 本机 Project 绑定（对应本机全局数据库）
+.tasknest/project.toml
+
 # 日志
 logs/
 *.log

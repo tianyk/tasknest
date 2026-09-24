@@ -9,7 +9,8 @@
 
 Local-first、CLI-first、AI-first：记录“要做什么”（Task）和“这次工作发生了什么”（Activity）。最终以单个二进制 `tasknest` 分发，无需额外 Runtime。
 
-> 当前状态：**工程脚手架阶段**，业务命令尚未实现。产品需求见 [prd.md](./prd.md)。
+> 当前状态：**一期功能已实现**（Project 发现 / Task / Status / Activity / split / CLI / SQLite / 单二进制）。
+> 产品需求见 [prd.md](./prd.md)。
 
 ## 技术栈
 
@@ -21,12 +22,27 @@ Local-first、CLI-first、AI-first：记录“要做什么”（Task）和“这
 
 ```bash
 bun install          # 安装开发依赖
-bun run dev          # 运行占位入口（--watch）
+bun run dev          # 运行 CLI 入口（--watch）
 bun run typecheck    # 类型检查
 bun run lint:check   # ESLint 检查
 bun test             # 运行现有检查及集成 / 端到端验收
 bun run build        # 编译单二进制 dist/tasknest
 ```
+
+## 使用示例
+
+```bash
+tasknest init                          # 为当前目录建立 Project 标记（未标记时进入 Personal）
+tasknest add "支持导出任务"            # 创建 Task（可只有标题）
+tasknest comment 1 "第一版只支持导出 Excel"
+tasknest start 1                       # 状态别名：start / block / done / cancel / reopen
+tasknest split 1 "支持 PDF 导出"       # 拆分并建立 derived_from
+tasknest done 1
+tasknest list                          # 默认显示 todo / in_progress / blocked
+tasknest show 1                        # 详情、来源与评论
+```
+
+数据统一存放在 `~/.tasknest/`（`tasknest.db` / `config.toml` / `project.toml`）；项目内 `.tasknest/project.toml` 只负责定位 Project。
 
 ## 目录结构
 
@@ -51,7 +67,7 @@ skills/tasknest/ 官方 Agent Skill
 | [docs/design/architecture.md](./docs/design/architecture.md) | 模块分层与工程约定 |
 | [docs/design/database-schema.md](./docs/design/database-schema.md) | SQLite 落地与迁移策略 |
 | [AGENTS.md](./AGENTS.md) | AI 开发强约束规则 |
-| [skills/tasknest/SKILL.md](./skills/tasknest/SKILL.md) | Agent 使用规范（草案） |
+| [skills/tasknest/SKILL.md](./skills/tasknest/SKILL.md) | Agent 使用规范（一期） |
 
 ## 开发约定
 
